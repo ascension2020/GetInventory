@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 """###v2.0###"""
 import socket
 from threading import Thread
@@ -8,15 +10,11 @@ import json
 import re
 from datetime import datetime
 import time
-import getopt
 import sys
 from pathlib import Path
-import logging
-import platform
 import netmiko
 import openpyxl
 import optparse
-import textfsm
 
 INPUT_FILE_NAME = "GetInventory - Default.xlsx"
 
@@ -29,7 +27,6 @@ TESTING = False
 
 """###Global Variables###"""
 GLBL_KEY_MAP = {}
-
 
 
 def main():
@@ -46,7 +43,7 @@ def main():
     if cli_arg["input_file"]:
         INPUT_FILE_NAME = cli_arg["input_file"]
     VERBOSE = cli_arg["verbose"]
-    ###Print Starting
+    # Print Starting
     spacer = "\n\n" + gen_spacer("#", 1)
     print(spacer + "\t\tStarting GetInventory Script" + spacer)
     # Get all global variables
@@ -67,8 +64,9 @@ def main():
     if VERBOSE:
         print("Excel Row | Host            | Message")
         print(60*"-")
-    ###Connects to net_devices
-    """If you need to add more functions or to run more commands add them to the function below"""
+    # Connects to net_devices
+    # If you need to add more functions or to run more commands add them to the
+    # function below
     if TESTING:
         testing_connection(network_devices, work_book, GLBL_KEY_MAP)
         sys.exit()
@@ -86,8 +84,9 @@ def main():
 
 """######## Gather Functions that run based on Settings Tab ########"""
 
+# XR Ready
 
-## XR Ready
+
 def gather_version(connection, net_dev, count):
     """
     Captures the show version command and saves the textfsm outcome to
@@ -99,7 +98,7 @@ def gather_version(connection, net_dev, count):
     show_proc_cpu(connection, net_dev, count)
 
 
-## XR Ready, Need to test more
+# XR Ready, Need to test more
 def gather_arp(connection, net_dev, count):
     """
     Captures arp information and utilizing the vrf data it parses the
@@ -133,7 +132,7 @@ def gather_arp(connection, net_dev, count):
     net_dev.show_for_xls["gather_arp"] = arp_list
 
 
-## XR Ready, Need to test more
+# XR Ready, Need to test more
 def gather_mac(connection, net_dev, count):
     """
     All the parsing of the
@@ -161,13 +160,13 @@ def gather_mac(connection, net_dev, count):
         net_dev.show_for_xls["gather_mac"] = [output]
 
 
-## XR Ready, Need to test more
+# XR Ready, Need to test more
 def gather_interface(connection, net_dev, count):
     """
     Gather Interface information, the function was modified from the
     original script.
     """
-    ####This is from old
+    # This is from old
     command = "show interface"
     command2 = "show interface status"
     log_cmd_textfsm(connection, net_dev, command, count)
@@ -182,7 +181,7 @@ def gather_interface(connection, net_dev, count):
     if isinstance(output2, list):
         switchport_data_found = True
         # If device is a switch, get trunk info into dictionary.
-        #log_cmd_textfsm(connection, net_dev, "show int trunk", count)
+        # log_cmd_textfsm(connection, net_dev, "show int trunk", count)
         trunks = get_trunk_dict(net_dev, connection)
 
     # Write Interface data to spreadsheet 'Interfaces' tab
@@ -245,7 +244,8 @@ def gather_interface(connection, net_dev, count):
         net_dev.show_for_xls["gather_interface"] = [output]
 
 
-## XR Ready, need to test
+# XR Ready, need to test
+
 def gather_cdp(connection, net_dev, count):
     command = "show cdp neighbor detail"
     command2 = "show cdp neighbor"
@@ -262,8 +262,9 @@ def gather_cdp(connection, net_dev, count):
         output["local_port"] = "No CDP Data"
         net_dev.show_for_xls["gather_cdp"] = [output]
 
+# XR Ready, need to test
 
-## XR Ready, need to test
+
 def gather_lldp(connection, net_dev, count):
     command = "show lldp neighbor detail"
     txt_tmpl = None
@@ -281,7 +282,7 @@ def gather_lldp(connection, net_dev, count):
         net_dev.show_for_xls["gather_lldp"] = [output]
 
 
-## XR Ready, need to test
+# XR Ready, need to test
 def gather_route(connection, net_dev, count):
     vrf_list = get_vrf_names(net_dev, connection, count)
     route_list = []
@@ -315,7 +316,7 @@ def gather_route(connection, net_dev, count):
     net_dev.show_for_xls["gather_route"] = route_list
 
 
-## XR Ready, Need to test more
+# XR Ready, Need to test more
 def gather_bgp(connection, net_dev, count):
     command = "show ip bgp"
     if net_dev.parse_method == "cisco_xr":
@@ -340,7 +341,7 @@ def gather_bgp(connection, net_dev, count):
         net_dev.show_for_xls["gather_bgp"] = [output]
 
 
-## XR Ready
+# XR Ready
 def gather_inventory(connection, net_dev, count):
     command = "show inventory"
     txt_tmpl = None
@@ -361,11 +362,11 @@ def update_sfp_cout(net_dev, inventory_list):
     sfp_count = 0
     for item in inventory_list:
         if "sfp" in item["descr"].lower():
-            sfp_count +=1
-    net_dev.sfp_count=sfp_count
+            sfp_count += 1
+    net_dev.sfp_count = sfp_count
 
 
-## XR Ready
+# XR Ready
 def gather_commands(connection, net_dev, other_shows, count=0):
     """
     Logs the other show commands requested by the user, in "Commands" sheet
@@ -377,12 +378,12 @@ def gather_commands(connection, net_dev, other_shows, count=0):
         net_dev.user_rqstd_show[command] = output
 
 
-####Initial Setup Fucntions
-def read_settings_sheet(ws_obj, start_row=5,end_row=15):
+# Initial Setup Fucntions
+def read_settings_sheet(ws_obj, start_row=5, end_row=15):
     """
     Read all the Settings from the Settings sheet and generate the appropriate Dictionary.
     """
-    t_dict={}
+    t_dict = {}
     for i in range(start_row, end_row+1):
         prompt = rw_cell(ws_obj, i, 1).lower()
         t_dict[prompt] = rw_cell(ws_obj, i, 3)
@@ -393,6 +394,7 @@ def read_settings_sheet(ws_obj, start_row=5,end_row=15):
         else:
             t_dict[prompt] = False
     return t_dict
+
 
 def read_global_variables(ws_obj):
     t_dict = {}
@@ -411,8 +413,9 @@ def read_global_variables(ws_obj):
         sys.exit()
     return t_dict
 
+
 def cell_iter_to_list(cell_iter, ignore_empty_cell):
-    t_list=[]
+    t_list = []
     for cell in cell_iter:
         if not ignore_empty_cell:
             t_list.append(cell.value)
@@ -420,28 +423,28 @@ def cell_iter_to_list(cell_iter, ignore_empty_cell):
             t_list.append(cell.value)
     return t_list
 
+
 def update_with_cli_args(glbl_var, cli_arg):
     for key, val in cli_arg.items():
         if key in list(glbl_var.keys()) and val:
-            if key =="output_dir":
+            if key == "output_dir":
                 glbl_var[key] = verify_path(val)
             else:
                 glbl_var[key] = val
+
 
 def get_setup_vars(wb_obj, cli_arg):
     """
     Reads all the setup variables from the XLS document.
     """
     return_dict = {}
-    t_list = []
-    t_dict = {}
     # Gathers the Commands to capture
     return_dict["other_commands"] = cell_iter_to_list(wb_obj["Commands"]["A"], True)
     # Gathers the Settings, on which functions to do.
     return_dict["settings"] = read_settings_sheet(wb_obj["Settings"])
     # Adds all the global parameters
-    t_glbl_dict =read_global_variables(wb_obj["Main"])
-    ##Update override with any CLI Arguments
+    t_glbl_dict = read_global_variables(wb_obj["Main"])
+    # Update override with any CLI Arguments
     update_with_cli_args(t_glbl_dict, cli_arg)
     return_dict["global"] = t_glbl_dict
     return return_dict
@@ -454,7 +457,7 @@ def read_network_devices(wb_obj, dflt_creds):
     """
     sheet_obj = get_xls_sheet(wb_obj, "Main")
     return_list = []
-        # Read all the devices
+    # Read all the devices
     for i in range(8, sheet_obj.max_row + 1):
         host = rw_cell(sheet_obj, i, 1)
         if host:
@@ -549,7 +552,7 @@ def con_thread(net_dev, setup_vars, n):
         start_time = time.time()
         conn = connect_single_device(net_dev, n)
         # Add any command function captures here
-        if conn != None:
+        if conn is not None:
             # Start CLI Log if True
             if RAW_CLI_OUTPUT:
                 start_connection_log(conn, net_dev, setup_vars["global"]["output_dir"])
@@ -559,77 +562,77 @@ def con_thread(net_dev, setup_vars, n):
                     gather_version(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Version", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather Version", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_arp"]:
                 try:
                     gather_arp(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather ARP", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather ARP", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_mac"]:
                 try:
                     gather_mac(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather MAC", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather MAC", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_interface"]:
                 try:
                     gather_interface(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Interface", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather Interface", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_cdp"]:
                 try:
                     gather_cdp(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather CDP", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather CDP", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_lldp"]:
                 try:
                     gather_lldp(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather LLDP", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather LLDP", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_route"]:
                 try:
                     gather_route(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Route", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather Route", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_bgp"]:
                 try:
                     gather_bgp(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather BGP", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather BGP", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_inventory"]:
                 try:
                     gather_inventory(conn, net_dev, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Inventory", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather Inventory", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             if settings["gather_commands"]:
                 try:
                     gather_commands(conn, net_dev, other_shows, n)
                 except Exception as e:
                     if VERBOSE:
-                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Commands", "\n"+60*"*")
+                        print(60*"*"+"\n", net_dev.host, "| Issue with Gather Commands", "\n"+60*"*")
                     net_dev.add_detected_error(e)
             net_dev.active = "Completed"
         else:
             net_dev.active = "Error"
             if VERBOSE:
                 print(22*"*", "Connection Error", 21*"*")
-                print_net_dev_msg(net_dev,"Unable to establish a connection")
+                print_net_dev_msg(net_dev, "Unable to establish a connection")
                 print(60*"*")
         net_dev.elapsed_time = int(time.time() - start_time)
 
@@ -640,7 +643,8 @@ def start_connection_log(conn, net_dev, log_path):
     log_path = (log_path/"raw_cli"/(net_dev.host+"_raw_cli.log"))
     conn.open_session_log(str(log_path), "append")
     if VERBOSE:
-        print_net_dev_msg(net_dev,"Session Logging has been enabled")
+        print_net_dev_msg(net_dev, "Session Logging has been enabled")
+
 
 def connect_single_device(net_dev, count):
     """
@@ -650,7 +654,7 @@ def connect_single_device(net_dev, count):
     """
     try:
         if VERBOSE:
-            print_net_dev_msg(net_dev,"Starting Connection")
+            print_net_dev_msg(net_dev, "Starting Connection")
         conn = netmiko.ConnectHandler(**net_dev.connection)
         conn.enable()
         if net_dev.parse_method == "extreme_exos":
@@ -659,14 +663,14 @@ def connect_single_device(net_dev, count):
             conn.send_command("term len 0")
         get_hostname(conn, net_dev)
         if VERBOSE:
-            print_net_dev_msg(net_dev, "Hostname is: {}".format( str(net_dev.hostname)))
+            print_net_dev_msg(net_dev, "Hostname is: {}".format(str(net_dev.hostname)))
         return conn
     except Exception as e:
         net_dev.conn_error_detected(e)
         return None
 
 
-###Get and Parse data functions
+# Get and Parse data functions
 def log_cmd_textfsm(connection, net_dev, command, count, txtfsm_tmpl=None):
     """
     Logs the Command with the textfsm option enabled, it also uses
@@ -748,7 +752,7 @@ def get_xr_locations(net_dev, connection, count):
         return net_dev.xr_locations
     except AttributeError:
         if VERBOSE:
-            print_net_dev_msg(net_dev,"Parsing XR Device Locations")
+            print_net_dev_msg(net_dev, "Parsing XR Device Locations")
         command = "show l2vpn forwarding bridge-domain : mac-address location ?"
         output = connection.send_command(command)
         connection.send_command("")
@@ -764,7 +768,7 @@ def get_xr_bg_grp_dmns(net_dev, connection, count):
         bg_grp_dmns = net_dev.bg_grp_dmns
     except AttributeError:
         if VERBOSE:
-            print_net_dev_msg(net_dev,"Parsing BGP Group and Domain")
+            print_net_dev_msg(net_dev, "Parsing BGP Group and Domain")
         net_dev.bg_grp_dmns = []
         command = "show l2vpn bridge-domain"
         txt_tmpl = "ntc-templates/test_tmpl/cisco_xr_show_l2vpn_forwarding_bridge_info.textfsm"
@@ -1021,7 +1025,7 @@ def get_vrf_interfaces_dict(device, conn, count):
     return output
 
 
-####Save Functions
+# Save Functions
 def save_device_data(net_devices, wb_obj, setup_vars, key_map):
     """
     Runs all the Save functions for the network devices
@@ -1069,13 +1073,14 @@ def save_dev_show_json_data(net_dev):
             write_str = spacer + "*" * 20 + "\tEnd of File\t" + "*" * 20
             filehandle.write(write_str)
 
+
 def print_net_dev_msg(net_dev, msg):
     line1 = str(net_dev.main_col)
-    if len(line1)<8:
+    if len(line1) < 8:
         line1 += (8-len(line1))*" "
     line1 = " "+line1
     line2 = str(net_dev.host)
-    if len(line2)<15:
+    if len(line2) < 15:
         line2 += (15-len(line2))*" "
     print(line1, "|", line2, "|", msg)
 
@@ -1187,7 +1192,7 @@ def save_xls(wb_obj, file_name=None, output_dir=None):
     wb_obj.save(file_save_string)
 
 
-###Helper Functinos###
+# Helper Functinos###
 def parse_locations_frm_prmpt(raw_str):
     """
     Parses the ? prompt to get the locations
@@ -1411,56 +1416,53 @@ def cli_args():
     """Reads the CLI options provided and returns them using the OptionParser
     Will return the Values as a dictionary"""
     parser = optparse.OptionParser()
-    parser.add_option('-v','--verbose',
+    parser.add_option('-v', '--verbose',
                       dest="verbose",
                       default=False,
                       action="store_true",
                       help="Enable Verbose Output"
                       )
-    parser.add_option('-r','--raw_cli_output',
+    parser.add_option('-r', '--raw_cli_output',
                       dest="raw_cli_output",
                       default=False,
                       action="store_true",
                       help="Capture the raw CLI output"
                       )
-    parser.add_option('-i','--input_file',
+    parser.add_option('-i', '--input_file',
                       dest="input_file",
                       default="GetInventory - Default.xlsx",
                       action="store",
                       help="Input file name of excel sheet"
                       )
-    parser.add_option('-o','--output_file',
+    parser.add_option('-o', '--output_file',
                       dest="output_file",
                       action="store",
                       help="Output file name of excel sheet"
                       )
-    parser.add_option('-d','--output_directory',
+    parser.add_option('-d', '--output_directory',
                       dest="output_dir",
                       action="store",
                       help="Output Directory of excel sheet"
                       )
-    parser.add_option('-u','--username',
+    parser.add_option('-u', '--username',
                       dest="username",
                       action="store",
                       help="Global Username"
                       )
-    parser.add_option('-p','--password',
+    parser.add_option('-p', '--password',
                       dest="password",
                       action="store",
                       help="Global Password"
                       )
-    parser.add_option('-s','--secret',
+    parser.add_option('-s', '--secret',
                       dest="secret",
                       action="store",
                       help="Global Secret"
                       )
 
-
     options, remainder = parser.parse_args()
     # Utilizing the vars() method we can return the options as a dictionary
     return vars(options)
-
-
 
 
 def verify_path(output_dir):
@@ -1521,6 +1523,7 @@ class NetworkDevice():
     NetworkDevice class to handle and retain all output information.
     """
     supported_devices = ["cisco_xr", "cisco_ios", "cisco_nxos", "extreme_exos"]
+
     def __init__(
             self,
             t_host,
@@ -1534,7 +1537,7 @@ class NetworkDevice():
             # ,
             # raw_cli,
             # out_dir
-        ):
+            ):
         self.active = t_active
         self.host = t_host
         self.hostname = ""
@@ -1614,7 +1617,7 @@ class NetworkDevice():
         Detects the type of Device type.
         """
         try:
-            print(self.main_col,"|",self.host,"| Detecting Device Type")
+            print(self.main_col, "|", self.host, "| Detecting Device Type")
             guesser = netmiko.SSHDetect(**self.connection)
             best_match = guesser.autodetect()
             if not best_match:
@@ -1623,7 +1626,7 @@ class NetworkDevice():
                 self.active = "Error"
                 best_match = "Unknown"
             else:
-                print(self.main_col, "|",self.host, "| Device was detected as:", best_match)
+                print(self.main_col, "|", self.host, "| Device was detected as:", best_match)
             self.connection['device_type'] = best_match
             self.parse_method = best_match
         except Exception as e:
@@ -1647,7 +1650,7 @@ class NetworkDevice():
             sock.connect((self.host, int(port)))
             sock.shutdown(2)
             return True
-        except:
+        except Exception:
             return False
 
     def probe_port(self, port):
@@ -1683,10 +1686,8 @@ class NetworkDevice():
         t_time = get_current_time()
         self.error_msgs.append([comment, t_time])
 
-
-
-    ##The following functions add more variables to the output
-    ##Or handle the non simple show commands
+    # The following functions add more variables to the output
+    # Or handle the non simple show commands
     def read_vers_info(self):
         """
         Reads the "show version" information and updates the NetworkDevices
@@ -1725,7 +1726,7 @@ class NetworkDevice():
         self.add_error_msg(t_err_msg)
 
 
-###For testing Only
+# For testing Only
 def testing_connection(net_devices, wb_obj, key_map):
     """
     This is only for Testing the new functinos without multithreading.
@@ -1736,7 +1737,7 @@ def testing_connection(net_devices, wb_obj, key_map):
             start_time = time.time()
             connection = connect_single_device(device, n)
             # Add any command function captures here
-            if connection != None:
+            if connection is not None:
                 gather_interface(connection, device, n)
                 device.interface_count = count_interfaces(device.show_output_json["show interface"])
                 device.active = "Completed"
@@ -1758,7 +1759,7 @@ def remove_passwords(wb_obj):
     rw_cell(wb_obj["Main"], 2, 2, True, "")
     rw_cell(wb_obj["Main"], 3, 2, True, "")
     for n, val in enumerate(wb_obj["Main"]["F"]):
-        if n > 7: # Starts at 8
+        if n > 7:  # Starts at 8
             rw_cell(wb_obj["Main"], n, 6, True, "")
             rw_cell(wb_obj["Main"], n, 7, True, "")
 
